@@ -8,6 +8,7 @@
   "dependencies": {
     "dotenv": "^4.0.0",
     "edit-google-spreadsheet": "^0.2.21",
+    "google-sheets-node-api": "^0.3.0",
     "google-spreadsheet-append": "^0.0.7"
   }
 }
