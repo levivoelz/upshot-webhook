@@ -1,38 +1,174 @@
+var GoogleSpreadsheet = require('google-spreadsheet');
+console.log(GoogleSpreadsheet)
+
 function upshotTest(hook) {
-	var GoogleSpreadsheet = require("google-sheets-node-api");
-	var mySheet = new GoogleSpreadsheet(hook.env.MY_GOOG_SHEET_ID);
-	var creds = {
-		client_email: hook.env.MY_GOOG_EMAIL,
-		private_key: hook.env.MY_GOOG_KEY
-	};
+	// if (!hook) {
+	// 	require('dotenv').config()
+	// };
 
-	hook.res.json({status: 'failure :-(', error: hook.env.MY_GOOG_SHEET_ID})
 
-	mySheet.useServiceAccountAuth(creds)
-		.then(mySheet.getInfo.bind(mySheet))
-		.then(function(sheet_info) {
-	    var sheet1 = sheet_info.worksheets[0];
-	 		var data = {'Col1': 'Val1', Col2: 'Val2', Col3:'Val3', Col4: 'Val4', Col5: 'Val5', Col6: 'Val6', Col7: 'Val7'};
+	var async = require('async');
+	const env = hook.env; // ? hook.env : process.env;
+	const params = hook.params || {}; // ? hook.params : {};
+	const text = params.text
+		? params.text.split(/ at | with snippet /)
+		: ['test name', 'test@email.com', 'test snippet']
 
-	    sheet1.addRow(data)
-	      // .then(sheet1.getRows.bind(sheet1, null))
-	      .then(function(rows) {
-	        hook.res.json({status: 'success!', data});
-	      })
-	      // .spread(function(rows) {
-	      //   console.log('Done deleteing');
-	      //   rows[1].Col7 = 'new val2';
-	      //   return rows[1].save();
-	      // })
-	      // .then(console.log.bind(console, 'Done saving'))
-	      .catch(function(e) {
-	        hook.res.json({status: 'failure :-(', error: err});
-	      });
-		})
-		.catch(function(err) {
-			hook.res.json({status: 'failure :-(', error: err});
-		});
+	// spreadsheet key is the long id in the sheets URL
+	var doc = new GoogleSpreadsheet(env.MY_GOOG_SHEET_ID);
+	var sheet;
+
+	async.series([
+	  function setAuth(step) {
+	    var creds = {
+	      client_email: env.MY_GOOG_EMAIL,
+	      private_key: env.MY_GOOG_KEY
+	    }
+
+	    doc.useServiceAccountAuth(creds, step);
+	  },
+
+	  function getInfoAndWorksheets(step) {
+	    doc.getInfo(function(err, info) {
+				if (err) {
+					console.log(err)
+				}
+	      // console.log('Loaded doc: '+info.title+' by '+info.author.email);
+	      sheet = info.worksheets[0];
+	      // console.log('sheet 1: '+sheet.title+' '+sheet.rowCount+'x'+sheet.colCount);
+				hook.res.json({status: 'success', error: step})
+	      step();
+	    });
+	  },
+
+	  function workingWithRows(step) {
+	    // google provides some query options
+			hook.res.json({status: 'success', error: 'none'})
+	    sheet.getRows({
+	      // offset: 0,
+	      // limit: 0,
+	      // orderby: 'col1'
+	    }, function( err, rows ){
+				if (err) {
+					hook.res.json({status: 'failure :-(', error: err})
+				}
+	      // console.log('Read ' + rows.length + ' rows');
+				// console.log('rows: ', rows[0].colname)
+
+				hook.res.json({status: 'success', error: 'none'})
+				sheet.addRow({
+					name: text[0],
+					email: text[1],
+					snippet: text[2]
+				}, function(err) {
+					if (err) {
+						hook.res.json({status: 'failure :-(', error: err})
+					}
+
+					hook.res.json({status: 'success', error: 'none'})
+					// console.log(err)
+				})
+
+	      // the row is an object with keys set by the column headers
+	      // rows[0].colname = 'new val';
+	      // rows[0].save(); // this is async
+
+	      // deleting a row
+	      // rows[0].del();  // this is async
+
+	      step();
+	    });
+	  }
+
+	  // function workingWithCells(step) {
+	  //   sheet.getCells({
+	  //     'min-row': 1,
+	  //     'max-row': 5,
+	  //     'return-empty': true
+	  //   }, function(err, cells) {
+	  //     var cell = cells[0];
+	  //     console.log('Cell R'+cell.row+'C'+cell.col+' = '+cells.value);
+		//
+	  //     // cells have a value, numericValue, and formula
+	  //     cell.value == '1'
+	  //     cell.numericValue == 1;
+	  //     cell.formula == '=ROW()';
+		//
+	  //     // updating `value` is "smart" and generally handles things for you
+	  //     cell.value = 123;
+	  //     cell.value = '=A1+B2'
+	  //     cell.save(); //async
+		//
+	  //     // bulk updates make it easy to update many cells at once
+	  //     cells[0].value = 1;
+	  //     cells[1].value = 2;
+	  //     cells[2].formula = '=A1+B1';
+	  //     sheet.bulkUpdateCells(cells); //async
+		//
+	  //     step();
+	  //   });
+	  // }//,
+		//
+	  // function managingSheets(step) {
+	  //   doc.addWorksheet({
+	  //     title: 'my new sheet'
+	  //   }, function(err, sheet) {
+		//
+	  //     // change a sheet's title
+	  //     sheet.setTitle('new title'); //async
+		//
+	  //     //resize a sheet
+	  //     sheet.resize({rowCount: 50, colCount: 20}); //async
+		//
+	  //     sheet.setHeaderRow(['name', 'age', 'phone']); //async
+		//
+	  //     // removing a worksheet
+	  //     sheet.del(); //async
+		//
+	  //     step();
+	  //   });
+	  // }
+	]);
 }
+
+// function upshotTest(hook=null) {
+// 	var GoogleSpreadsheet = require("google-sheets-node-api");
+// 	const env = hook ? hook.env : process.env
+// 	var mySheet = new GoogleSpreadsheet(env.MY_GOOG_SHEET_ID);
+// 	var creds = {
+// 		client_email: env.MY_GOOG_EMAIL,
+// 		private_key: env.MY_GOOG_KEY
+// 	};
+//
+// 	// hook.res.json({status: 'failure :-(', error: hook.env.MY_GOOG_SHEET_ID})
+//
+// 	mySheet.useServiceAccountAuth(creds)
+// 		.then(mySheet.getSpreadsheet.bind(mySheet))
+// 		.then(function(sheetInfo) {
+// 			console.log(sheetInfo)
+// 	    var sheet1 = sheetInfo.worksheets[0];
+// 	 		var data = {Col1: 'Val1', Col2: 'Val2', Col3:'Val3', Col4: 'Val4', Col5: 'Val5', Col6: 'Val6', Col7: 'Val7'};
+//
+// 	    sheet1.addRow(data)
+// 	      // .then(sheet1.getRows.bind(sheet1, null))
+// 				.then(function(rows) {
+//             return [rows, rows[0].del()];
+//         })
+//         .spread(function(rows) {
+//             console.log('Done deleteing');
+//             rows[1].Col7 = 'new val2';
+//             return rows[1].save();
+//         })
+//         .then(console.log.bind(console, 'Done saving'))
+//         .catch(function(e) {
+//             console.error(e);
+//         });
+// 		})
+// 		.catch(function(err) {
+// 			throw err;
+// 			// hook.res.json({status: 'failure :-(', error: err});
+// 		});
+// }
 // function upshotTest(hook=null) {
 // 	var dev = hook ? false : true;
 // 	if (dev) require('dotenv').config();
@@ -91,4 +227,4 @@ function upshotTest(hook) {
 
 // upshotTest()
 
-module['exports'] = upshotTest;
+module.exports = upshotTest;
