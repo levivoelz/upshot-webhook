@@ -1,0 +1,13 @@
+{
+  "name": "upshot-webhook",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/levivoelz/upshot-webhook",
+  "author": "Levi Voelz",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^4.0.0",
+    "edit-google-spreadsheet": "^0.2.21",
+    "google-spreadsheet-append": "^0.0.7"
+  }
+}
